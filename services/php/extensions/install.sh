@@ -14,6 +14,11 @@ echo "============================================"
 echo
 
 
+if [ "${PHP_EXTENSIONS}" != "" ]; then
+    apk add --no-cache autoconf g++ libtool make curl-dev gettext-dev linux-headers
+fi
+
+
 export EXTENSIONS=",${PHP_EXTENSIONS},"
 
 
@@ -420,7 +425,12 @@ fi
 
 if [[ -z "${EXTENSIONS##*,redis,*}" ]]; then
     echo "---------- Install redis ----------"
-    installExtensionFromTgz redis-4.1.1
+    installExtensionFromTgz redis-5.0.2
+fi
+
+if [[ -z "${EXTENSIONS##*,apcu,*}" ]]; then
+    echo "---------- Install redis ----------"
+    installExtensionFromTgz apcu-5.1.17
 fi
 
 if [[ -z "${EXTENSIONS##*,memcached,*}" ]]; then

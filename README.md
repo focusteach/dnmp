@@ -33,7 +33,9 @@ DNMP项目特点：
     - [3.2 安装PHP扩展](#32-安装PHP扩展)
     - [3.3 Host中使用php命令行（php-cli）](#33-host中使用php命令行php-cli)
     - [3.4 使用composer](#34-使用composer)
-- [4.添加快捷命令](#4添加快捷命令)
+- [4.管理命令](#4管理命令)
+    - [4.1 服务器启动和构建命令](#41-服务器启动和构建命令)
+    - [4.2 添加快捷命令](#42-添加快捷命令)
 - [5.使用Log](#5使用log)
     - [5.1 Nginx日志](#51-nginx日志)
     - [5.2 PHP-FPM日志](#52-php-fpm日志)
@@ -67,8 +69,7 @@ DNMP项目特点：
 │   ├── php54                   PHP5.4 配置目录
 │   └── redis                   Redis 配置目录
 ├── logs                        日志目录
-├── docker-compose-simple.yml   简单版本的 Docker 服务配置示例文件
-├── docker-compose-full.yml     完整版本的 Docker 服务配置示例文件
+├── docker-compose.sample.yml   Docker 服务配置示例文件
 ├── env.smaple                  环境配置示例文件
 └── www                         PHP 代码目录
 ```
@@ -86,54 +87,39 @@ DNMP项目特点：
     ```
     $ sudo gpasswd -a ${USER} docker
     ```
-4. 拷贝并命名配置文件（Windows系统请用copy命令），启动：
+4. 拷贝并命名配置文件（Windows系统请用`copy`命令），启动：
     ```
-    $ cd dnmp
-    $ cp env.sample .env
-    $ cp docker-compose-simple.yml docker-compose.yml
-    $ docker-compose up
+    $ cd dnmp                                           # 进入项目目录
+    $ cp env.sample .env                                # 复制环境变量文件
+    $ cp docker-compose.sample.yml docker-compose.yml   # 复制 docker-compose 配置文件。默认启动3个服务：
+                                                        # Nginx、PHP7和MySQL8。要开启更多其他服务，如Redis、
+                                                        # PHP5.6、PHP5.4、MongoDB，ElasticSearch等，请删
+                                                        # 除服务块前的注释
+    $ docker-compose up                                 # 启动
     ```
-    > 这里我们使用 docker-compose-simple.yml 文件内的服务，是简单版本，只包含Nginx、PHP7.2和MySQL8 `3`个服务。如需更多服务，比如Redis、PHP5.4、MongoDB，ElasticSearch等，请参考 docker-compose-full.yml 文件内的服务列表，把需要的拷贝到 docker-compose.yml 文件再`up`即可。
-
-    > 注意：Windows安装360安全卫士的同学，请先将其退出，不然安装过程中可能Docker创建账号过程可能被拦截，导致启动时文件共享失败。
-5. 在浏览器中访问：`http://localhost`或`https://localhost`(自签名HTTPS演示)就能看到效果。
-    > 演示PHP代码在文件`./www/localhost/index.php`，里面包含了连接mysql服务器和redis服务器的代码，实际使用时可参考此代码。
-6. 如需管理服务，请在命令后面加上服务器名称，dnmp支持的服务名有：`nginx`、`php`、`php54`、`mysql`、`mongo`、`redis`、`phpmyadmin`、`phpredisadmin`、`elasticsearch`、`adminmongo`、`rabbitmq`、`kibana`
-```bash
-$ docker-compose up                         # 创建并且启动所有容器
-$ docker-compose up 服务1 服务2 ...         # 创建并且启动指定的多个容器
-$ docker-compose up -d 服务1 服务2 ...      # 创建并且已后台运行的方式启动多个容器
-
-
-$ docker-compose start 服务1 服务2 ...      # 启动服务
-$ docker-compose stop 服务1 服务2 ...       # 停止服务
-$ docker-compose restart 服务1 服务2 ...    # 重启服务
-$ docker-compose build 服务1 服务2 ...      # 构建或者重新构建服务
-
-
-$ docker-compose rm 服务1 服务2 ...         # 删除并且停止容器
-$ docker-compose down 服务1 服务2 ...       # 停止并删除容器，网络，图像和挂载卷
-```
-
+5. 在浏览器中访问：`http://localhost`或`https://localhost`(自签名HTTPS演示)就能看到效果，PHP代码在文件`./www/localhost/index.php`。
 
 ## 3.PHP和扩展
 ### 3.1 切换Nginx使用的PHP版本
-在使用 `docker-compose-simple.yml` 的情况下，我们只构建建 **PHP7** 版本的容器，
+首先，需要启动其他版本的PHP，比如PHP5.4，那就先在`docker-compose.yml`文件中删除PHP5.4前面的注释，再启动PHP5.4容器。
 
-要使用其他版本，请参考`docker-compose-full.yml`添加服务，如**PHP5.4**，构建完成后修改Nginx 配置的`fastcgi_pass`选项。
-
-例如，示例的 [http://localhost](http://localhost) 用的是PHP7.2，Nginx 配置：
+PHP5.4启动后，打开Nginx 配置，修改`fastcgi_pass`的主机地址，由`php`改为`php54`，如下：
 ```
     fastcgi_pass   php:9000;
 ```
-要改用PHP5.4，修改为：
+为：
 ```
     fastcgi_pass   php54:9000;
 ```
-再 **重启 Nginx** 生效。
+其中 `php` 和 `php54` 是`docker-compose.yml`文件中服务器的名称。
+
+最后，**重启 Nginx** 生效。
 ```bash
-$ docker exec -it dnmp_nginx_1 nginx -s reload
+$ docker exec -it nginx nginx -s reload
 ```
+这里两个`nginx`，第一个是容器名，第二个是容器中的`nginx`程序。
+
+
 ### 3.2 安装PHP扩展
 PHP的很多功能都是通过扩展实现，而安装扩展是一个略费时间的过程，
 所以，除PHP内置扩展外，在`env.sample`文件中我们仅默认安装少量扩展，
@@ -144,76 +130,43 @@ PHP_EXTENSIONS=pdo_mysql,opcache,redis       # PHP 要安装的扩展列表，�
 PHP54_EXTENSIONS=opcache,redis                 # PHP 5.4要安装的扩展列表，英文逗号隔开
 ```
 然后重新build PHP镜像。
-    ```bash
-    docker-compose build php
-    docker-compose up -d
-    ```
-可用的扩展请看同文件的`PHP extensions`注释块说明。
+```bash
+docker-compose build php
+```
+可用的扩展请看同文件的`env.sample`注释块说明。
 
 ### 3.3 Host中使用php命令行（php-cli）
-1. 打开主机的 `~/.bashrc` 或者 `~/.zshrc` 文件，加上：
-```bash
-php () {
-    tty=
-    tty -s && tty=--tty
-    docker run \
-        $tty \
-        --interactive \
-        --rm \
-        --volume $PWD:/www:rw \
-        --workdir /www \
-        dnmp_php php "$@"
-}
-```
-2. 让文件起效：
-```
-source ~/.bashrc
-```
-3. 然后就可以在主机中执行php命令了：
-```bash
-~ php -v
-PHP 7.2.13 (cli) (built: Dec 21 2018 02:22:47) ( NTS )
-Copyright (c) 1997-2018 The PHP Group
-Zend Engine v3.2.0, Copyright (c) 1998-2018 Zend Technologies
-    with Zend OPcache v7.2.13, Copyright (c) 1999-2018, by Zend Technologies
-    with Xdebug v2.6.1, Copyright (c) 2002-2018, by Derick Rethans
-```
-### 3.4 使用composer
-**我们建议在主机HOST中使用composer，避免PHP容器变得庞大**。
-1. 在主机创建一个目录，用以保存composer的配置和缓存文件：
-    ```
-    mkdir ~/dnmp/composer
-    ```
-2. 打开主机的 `~/.bashrc` 或者 `~/.zshrc` 文件，加上：
-    ```
-    composer () {
-        tty=
-        tty -s && tty=--tty
-        docker run \
-            $tty \
-            --interactive \
-            --rm \
-            --user $(id -u):$(id -g) \
-            --volume ~/dnmp/composer:/tmp \
-            --volume /etc/passwd:/etc/passwd:ro \
-            --volume /etc/group:/etc/group:ro \
-            --volume $(pwd):/app \
-            composer "$@"
-    }
 
+1. 参考[bash.alias.sample](bash.alias.sample)示例文件，将对应 php cli 函数拷贝到主机的 `~/.bashrc`文件。
+2. 让文件起效：
+    ```bash
+    source ~/.bashrc
     ```
+3. 然后就可以在主机中执行php命令了：
+    ```bash
+    ~ php -v
+    PHP 7.2.13 (cli) (built: Dec 21 2018 02:22:47) ( NTS )
+    Copyright (c) 1997-2018 The PHP Group
+    Zend Engine v3.2.0, Copyright (c) 1998-2018 Zend Technologies
+        with Zend OPcache v7.2.13, Copyright (c) 1999-2018, by Zend Technologies
+        with Xdebug v2.6.1, Copyright (c) 2002-2018, by Derick Rethans
+    ```
+### 3.4 使用composer
+**方法1：主机中使用composer命令**
+1. 确定composer缓存的路径。比如，我的dnmp下载在`~/dnmp`目录，那composer的缓存路径就是`~/dnmp/data/composer`。
+2. 参考[bash.alias.sample](bash.alias.sample)示例文件，将对应 php composer 函数拷贝到主机的 `~/.bashrc`文件。
+    > 这里需要注意的是，示例文件中的`~/dnmp/data/composer`目录需是第一步确定的目录。
 3. 让文件起效：
-    ```
+    ```bash
     source ~/.bashrc
     ```
 4. 在主机的任何目录下就能用composer了：
-    ```
+    ```bash
     cd ~/dnmp/www/
     composer create-project yeszao/fastphp project --no-dev
     ```
-5. （可选）如果提示需要依赖，用`--ignore-platform-reqs --no-scripts`关闭依赖检测。
-6. （可选）第一次使用 composer 会在 ~/dnmp/composer 目录下生成一个config.json文件，可以在这个文件中指定国内仓库，例如：
-    ```
+5. （可选）第一次使用 composer 会在 `~/dnmp/data/composer` 目录下生成一个**config.json**文件，可以在这个文件中指定国内仓库，例如：
+    ```json
     {
         "config": {},
         "repositories": {
@@ -225,17 +178,56 @@ Zend Engine v3.2.0, Copyright (c) 1998-2018 Zend Technologies
     }
 
     ```
+**方法二：容器内使用composer命令**
 
-## 4.添加快捷命令
-在开发的时候，我们可能经常使用`docker exec -it`切换到容器中，把常用的做成命令别名是个省事的方法。
-
-打开~/.bashrc，加上：
+还有另外一种方式，就是进入容器，再执行`composer`命令，以PHP7容器为例：
 ```bash
-alias dnginx='docker exec -it dnmp_nginx_1 /bin/sh'
-alias dphp72='docker exec -it dnmp_php_1 /bin/sh'
-alias dphp54='docker exec -it dnmp_php54_1 /bin/sh'
-alias dmysql='docker exec -it dnmp_mysql_1 /bin/bash'
-alias dredis='docker exec -it dnmp_redis_1 /bin/sh'
+docker exec -it php /bin/sh
+cd /www/localhost
+composer update
+```
+    
+## 4.管理命令
+### 4.1 服务器启动和构建命令
+如需管理服务，请在命令后面加上服务器名称，例如：
+```bash
+$ docker-compose up                         # 创建并且启动所有容器
+$ docker-compose up -d                      # 创建并且后台运行方式启动所有容器
+$ docker-compose up nginx php mysql         # 创建并且启动nginx、php、mysql的多个容器
+$ docker-compose up -d nginx php  mysql     # 创建并且已后台运行的方式启动nginx、php、mysql容器
+
+
+$ docker-compose start php                  # 启动服务
+$ docker-compose stop php                   # 停止服务
+$ docker-compose restart php                # 重启服务
+$ docker-compose build php                  # 构建或者重新构建服务
+
+$ docker-compose rm php                     # 删除并且停止php容器
+$ docker-compose down                       # 停止并删除容器，网络，图像和挂载卷
+```
+
+### 4.2 添加快捷命令
+在开发的时候，我们可能经常使用`docker exec -it`进入到容器中，把常用的做成命令别名是个省事的方法。
+
+首先，在主机中查看可用的容器：
+```bash
+$ docker ps           # 查看所有运行中的容器
+$ docker ps -a        # 所有容器
+```
+输出的`NAMES`那一列就是容器的名称，如果使用默认配置，那么名称就是`nginx`、`php`、`php56`、`mysql`等。
+
+然后，打开`~/.bashrc`或者`~/.zshrc`文件，加上：
+```bash
+alias dnginx='docker exec -it nginx /bin/sh'
+alias dphp='docker exec -it php /bin/sh'
+alias dphp56='docker exec -it php56 /bin/sh'
+alias dphp54='docker exec -it php54 /bin/sh'
+alias dmysql='docker exec -it mysql /bin/bash'
+alias dredis='docker exec -it redis /bin/sh'
+```
+下次进入容器就非常快捷了，如进入php容器：
+```bash
+$ dphp
 ```
 
 ## 5.使用Log
@@ -265,7 +257,7 @@ ini_set('display_errors', 'on');
 
 1. 进入容器，创建日志文件并修改权限：
     ```bash
-    $ docker exec -it dnmp_php_1 /bin/bash
+    $ docker exec -it php /bin/sh
     $ mkdir /var/log/php
     $ cd /var/log/php
     $ touch php-fpm.error.log
